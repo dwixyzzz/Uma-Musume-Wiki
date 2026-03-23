@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Uma Musume Wiki</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0917'/%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff6eb4'/%3E%3Cstop offset='1' stop-color='%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' dominant-baseline='middle' font-size='36'%3E🐴%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -214,8 +215,11 @@ body{padding-bottom:116px;}
   padding:8px 14px;
   overflow-x:auto;scrollbar-width:none;
   border-bottom:1px solid rgba(255,255,255,.05);
+  cursor:grab;user-select:none;
 }
 .cat-bar::-webkit-scrollbar{display:none;}
+.cat-bar.dragging{cursor:grabbing;}
+.cat-bar.dragging .cat-pill{pointer-events:none;}
 .cat-bar-label{
   font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;
   text-transform:uppercase;white-space:nowrap;flex-shrink:0;margin-right:2px;
@@ -289,9 +293,34 @@ body{padding-bottom:116px;}
   border-radius:16px;overflow:hidden;
   background:rgba(255,255,255,.05);
   border:1px solid rgba(255,180,230,.1);
-  display:flex;flex-direction:column;
+  display:flex;flex-direction:column;position:relative;
   transition:transform .28s cubic-bezier(.34,1.56,.64,1),box-shadow .28s,border-color .28s;
   cursor:pointer;
+}
+.album-card:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 16px 40px rgba(255,80,180,.22);border-color:rgba(255,110,180,.4);}
+/* Edit + delete buttons */
+.album-card-actions{
+  position:absolute;top:7px;right:7px;display:flex;gap:4px;z-index:10;
+  opacity:0;transition:opacity .18s;
+}
+.album-card:hover .album-card-actions{opacity:1;}
+.ac-btn{
+  width:28px;height:28px;border-radius:8px;border:none;
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  cursor:pointer;transition:all .15s;
+}
+.ac-edit{background:rgba(255,180,230,.25);color:white;}
+.ac-edit:hover{background:rgba(255,110,180,.6);}
+.ac-del{background:rgba(239,68,68,.25);color:white;}
+.ac-del:hover{background:rgba(239,68,68,.7);}
+/* YT linked indicator */
+.album-card.has-yt{border-color:rgba(255,80,80,.35);}
+.album-card.has-yt .album-art::after{
+  content:'▶';position:absolute;bottom:7px;left:8px;z-index:2;
+  font-size:10px;font-weight:800;color:white;
+  background:rgba(255,0,0,.8);padding:2px 6px;border-radius:6px;
+  letter-spacing:.05em;
 }
 .album-card:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 16px 40px rgba(255,80,180,.22);border-color:rgba(255,110,180,.4);}
 .album-art{
@@ -588,8 +617,50 @@ body{padding-bottom:116px;}
   <main style="padding:26px 22px;max-width:1200px;margin:auto;">
     <div class="section-hero">
       <span class="section-hero-icon">🎵</span>
-      <div class="section-hero-text"><h2>Songs & Music</h2><p>Click any album to play — powered by YouTube</p></div>
+      <div class="section-hero-text">
+        <h2>Songs & Music</h2>
+        <p>Paste a YouTube link per lagu biar langsung play 🎬</p>
+      </div>
+      <button onclick="toggleAddSong()" id="add-song-btn" style="margin-left:auto;flex-shrink:0;padding:8px 16px;border-radius:12px;border:1px solid rgba(255,110,180,.3);background:rgba(255,110,180,.1);color:var(--pink2);font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap">+ Add Song</button>
     </div>
+
+    <!-- Add / Edit Song Form -->
+    <div id="add-song-form" style="display:none;background:rgba(255,255,255,.05);border:1px solid rgba(255,180,230,.18);border-radius:16px;padding:20px;margin-bottom:22px;animation:fadeUp .2s ease">
+      <div style="font-size:14px;font-weight:700;color:var(--pink2);margin-bottom:14px" id="form-title-label">➕ Tambah Lagu Baru</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">JUDUL LAGU</label>
+          <input id="f-title" type="text" placeholder="cth: Umapyoi Densetsu" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">ARTIS</label>
+          <input id="f-artist" type="text" placeholder="cth: Uma Musume Cast" style="width:100%">
+        </div>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">YOUTUBE LINK / VIDEO ID</label>
+        <input id="f-yt" type="text" placeholder="https://youtu.be/xxxx  atau  https://www.youtube.com/watch?v=xxxx  atau langsung ID-nya" style="width:100%">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">TAGS (pisah koma)</label>
+          <input id="f-tags" type="text" placeholder="cth: Character Song, SSR" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">WARNA 1</label>
+          <input id="f-c1" type="color" value="#ff6eb4" style="width:100%;height:38px;border-radius:8px;border:1px solid rgba(255,180,230,.2);background:none;cursor:pointer">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">WARNA 2</label>
+          <input id="f-c2" type="color" value="#a855f7" style="width:100%;height:38px;border-radius:8px;border:1px solid rgba(255,180,230,.2);background:none;cursor:pointer">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="saveSongForm()" style="padding:9px 20px;border-radius:10px;border:none;background:linear-gradient(90deg,var(--pink),var(--purple));color:white;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">💾 Simpan</button>
+        <button onclick="cancelSongForm()" style="padding:9px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:var(--muted);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Batal</button>
+      </div>
+    </div>
+
     <div id="songs-grid" class="songs-grid"></div>
   </main>
 </div>
@@ -1133,102 +1204,209 @@ async function loadSupportCards(){
   });
 }
 
-/* ── SONGS ── */
-// color1/color2 = album art gradient, ytQuery = YouTube search term
-const SONGS=[
-  {title:"Make debut!",artist:"Starting Grid (スタートグリッド)",album:"Uma Musume OST",tags:["Opening","Anime S1"],c1:"#ff6eb4",c2:"#a855f7",ytQuery:"uma musume make debut opening"},
-  {title:"GIRLS' LEGEND U",artist:"Uma Musume Pretty Derby",album:"Anime S1 Insert",tags:["Insert Song","Anime"],c1:"#f59e0b",c2:"#ef4444",ytQuery:"uma musume girls legend u"},
-  {title:"Umapyoi Densetsu",artist:"Uma Musume Pretty Derby Cast",album:"Uma Musume Single",tags:["Viral","Insert Song"],c1:"#06b6d4",c2:"#6366f1",ytQuery:"uma musume umapyoi densetsu full"},
-  {title:"Waiting for You",artist:"Special Week (CV: Azumi Waki)",album:"Character Song Vol.1",tags:["Character Song","Special Week"],c1:"#ec4899",c2:"#8b5cf6",ytQuery:"uma musume waiting for you special week"},
-  {title:"Never Looking Back",artist:"Silence Suzuka (CV: Marika Kouno)",album:"Character Song Vol.2",tags:["Character Song","Silence Suzuka"],c1:"#3b82f6",c2:"#06b6d4",ytQuery:"uma musume never looking back silence suzuka"},
-  {title:"Grow Up Shine!",artist:"Special Week & Silence Suzuka",album:"Uma Musume Single",tags:["Duet","Anime"],c1:"#f97316",c2:"#facc15",ytQuery:"uma musume grow up shine"},
-  {title:"winning the soul",artist:"Uma Musume Game OST",album:"Pretty Derby Game",tags:["Game BGM","Race"],c1:"#10b981",c2:"#6366f1",ytQuery:"uma musume winning the soul"},
-  {title:"NEXT FRONTIER",artist:"Uma Musume Game OST",album:"Pretty Derby Game",tags:["Game BGM","Training"],c1:"#8b5cf6",c2:"#3b82f6",ytQuery:"uma musume next frontier"},
-  {title:"Blaze",artist:"Tokai Teio (CV: Machico)",album:"Character Song",tags:["Character Song","Tokai Teio"],c1:"#ef4444",c2:"#f97316",ytQuery:"uma musume blaze tokai teio"},
-  {title:"Stand Up Sunshine!!",artist:"Haru Urara (CV: Chisa Kimura)",album:"Character Song",tags:["Character Song","Haru Urara"],c1:"#f59e0b",c2:"#fbbf24",ytQuery:"uma musume stand up sunshine haru urara"},
-  {title:"DRIVE AT YOUR DREAM",artist:"Symboli Rudolf (CV: Saori Hayami)",album:"Character Song",tags:["Character Song","SSR"],c1:"#1e40af",c2:"#7c3aed",ytQuery:"uma musume drive at your dream symboli rudolf"},
-  {title:"Straight away!",artist:"El Condor Pasa (CV: Rie Takahashi)",album:"Character Song",tags:["Character Song","El Condor Pasa"],c1:"#065f46",c2:"#16a34a",ytQuery:"uma musume straight away el condor pasa"},
-  {title:"GalaxyStarlight",artist:"Gold Ship (CV: Akari Kitou)",album:"Character Song",tags:["Character Song","Gold Ship"],c1:"#7c3aed",c2:"#db2777",ytQuery:"uma musume galaxy starlight gold ship"},
-  {title:"tracte",artist:"Rice Shower (CV: Nozomi Yamamoto)",album:"Character Song",tags:["Character Song","Rice Shower"],c1:"#1d4ed8",c2:"#4f46e5",ytQuery:"uma musume tracte rice shower"},
-  {title:"Ambitious World",artist:"Mejiro McQueen (CV: Ayaka Ohashi)",album:"Character Song",tags:["Character Song","McQueen"],c1:"#be185d",c2:"#9333ea",ytQuery:"uma musume ambitious world mejiro mcqueen"},
-  {title:"BLOW my GALE",artist:"Fuji Kiseki (CV: Reina Ueda)",album:"Character Song",tags:["Character Song","Fuji Kiseki"],c1:"#0ea5e9",c2:"#38bdf8",ytQuery:"uma musume blow my gale fuji kiseki"},
+/* ══════════ SONGS ══════════ */
+const SONGS_DEFAULT=[
+  {title:"Make debut!",artist:"Starting Grid",album:"Uma Musume OST",tags:["Opening","Anime S1"],c1:"#ff6eb4",c2:"#a855f7",ytId:""},
+  {title:"GIRLS' LEGEND U",artist:"Uma Musume Pretty Derby",album:"Anime S1 Insert",tags:["Insert Song","Anime"],c1:"#f59e0b",c2:"#ef4444",ytId:""},
+  {title:"Umapyoi Densetsu",artist:"Uma Musume Pretty Derby Cast",album:"Uma Musume Single",tags:["Viral","Insert Song"],c1:"#06b6d4",c2:"#6366f1",ytId:""},
+  {title:"Waiting for You",artist:"Special Week (CV: Azumi Waki)",album:"Character Song Vol.1",tags:["Character Song","Special Week"],c1:"#ec4899",c2:"#8b5cf6",ytId:""},
+  {title:"Never Looking Back",artist:"Silence Suzuka (CV: Marika Kouno)",album:"Character Song Vol.2",tags:["Character Song","Silence Suzuka"],c1:"#3b82f6",c2:"#06b6d4",ytId:""},
+  {title:"Grow Up Shine!",artist:"Special Week & Silence Suzuka",album:"Uma Musume Single",tags:["Duet","Anime"],c1:"#f97316",c2:"#facc15",ytId:""},
+  {title:"winning the soul",artist:"Uma Musume Game OST",album:"Pretty Derby Game",tags:["Game BGM","Race"],c1:"#10b981",c2:"#6366f1",ytId:""},
+  {title:"NEXT FRONTIER",artist:"Uma Musume Game OST",album:"Pretty Derby Game",tags:["Game BGM","Training"],c1:"#8b5cf6",c2:"#3b82f6",ytId:""},
+  {title:"Blaze",artist:"Tokai Teio (CV: Machico)",album:"Character Song",tags:["Character Song","Tokai Teio"],c1:"#ef4444",c2:"#f97316",ytId:""},
+  {title:"Stand Up Sunshine!!",artist:"Haru Urara (CV: Chisa Kimura)",album:"Character Song",tags:["Character Song","Haru Urara"],c1:"#f59e0b",c2:"#fbbf24",ytId:""},
+  {title:"DRIVE AT YOUR DREAM",artist:"Symboli Rudolf (CV: Saori Hayami)",album:"Character Song",tags:["Character Song","SSR"],c1:"#1e40af",c2:"#7c3aed",ytId:""},
+  {title:"Straight away!",artist:"El Condor Pasa (CV: Rie Takahashi)",album:"Character Song",tags:["Character Song","El Condor Pasa"],c1:"#065f46",c2:"#16a34a",ytId:""},
+  {title:"GalaxyStarlight",artist:"Gold Ship (CV: Akari Kitou)",album:"Character Song",tags:["Character Song","Gold Ship"],c1:"#7c3aed",c2:"#db2777",ytId:""},
+  {title:"tracte",artist:"Rice Shower (CV: Nozomi Yamamoto)",album:"Character Song",tags:["Character Song","Rice Shower"],c1:"#1d4ed8",c2:"#4f46e5",ytId:""},
+  {title:"Ambitious World",artist:"Mejiro McQueen (CV: Ayaka Ohashi)",album:"Character Song",tags:["Character Song","McQueen"],c1:"#be185d",c2:"#9333ea",ytId:""},
+  {title:"BLOW my GALE",artist:"Fuji Kiseki (CV: Reina Ueda)",album:"Character Song",tags:["Character Song","Fuji Kiseki"],c1:"#0ea5e9",c2:"#38bdf8",ytId:""},
 ];
-let currentSong=null;
+
+// Load from localStorage (user edits persist)
+let SONGS=JSON.parse(localStorage.getItem('uma_songs')||'null')||SONGS_DEFAULT;
 let currentYtQuery="";
+let editingIdx=-1;
+
+function saveSongsToStorage(){localStorage.setItem('uma_songs',JSON.stringify(SONGS));}
+
+// Extract YouTube video ID from any URL format or raw ID
+function parseYtId(input){
+  input=(input||"").trim();
+  if(!input)return"";
+  // youtu.be/ID
+  let m=input.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+  if(m)return m[1];
+  // youtube.com/watch?v=ID or /embed/ID or /shorts/ID
+  m=input.match(/[?&/](?:v=|embed\/|shorts\/)([A-Za-z0-9_-]{11})/);
+  if(m)return m[1];
+  // Raw 11-char ID
+  if(/^[A-Za-z0-9_-]{11}$/.test(input))return input;
+  return"";
+}
 
 function loadSongs(){
   const el=document.getElementById('songs-grid');
   el.innerHTML='';
-  SONGS.forEach((s,idx)=>{
-    const card=document.createElement('div');
-    card.className='album-card';
-    card.onclick=()=>openSong(idx);
-    card.innerHTML=`
-      <div class="album-art">
-        <div class="album-art-bg" style="background:linear-gradient(135deg,${s.c1},${s.c2})"></div>
-        <div class="album-art-overlay"></div>
-        <div class="album-vinyl"></div>
-        <div class="album-play-btn">▶</div>
-      </div>
-      <div class="album-info">
-        <h3>${s.title}</h3>
-        <div class="artist">${s.artist}</div>
-        <div class="album-tags">${s.tags.map(t=>{
-          const cls=t.includes('Anime')?'anime':t.includes('Game')?'game':t.includes('SSR')?'rare':'';
-          return`<span class="album-tag ${cls}">${t}</span>`;
-        }).join('')}</div>
-      </div>`;
-    el.appendChild(card);
-  });
+  SONGS.forEach((s,idx)=>el.appendChild(makeSongCard(s,idx)));
+}
+
+function makeSongCard(s,idx){
+  const card=document.createElement('div');
+  card.className='album-card'+(s.ytId?' has-yt':'');
+  const tagHTML=s.tags.map(t=>{
+    const cls=t.includes('Anime')?'anime':t.includes('Game')?'game':t.includes('SSR')?'rare':'';
+    return`<span class="album-tag ${cls}">${t}</span>`;
+  }).join('');
+  card.innerHTML=`
+    <div class="album-card-actions">
+      <button class="ac-btn ac-edit" title="Edit link YT">✏️</button>
+      <button class="ac-btn ac-del" title="Hapus lagu">🗑️</button>
+    </div>
+    <div class="album-art">
+      <div class="album-art-bg" style="background:linear-gradient(135deg,${s.c1},${s.c2})"></div>
+      <div class="album-art-overlay"></div>
+      <div class="album-vinyl"></div>
+      <div class="album-play-btn">${s.ytId?'▶':'🔍'}</div>
+    </div>
+    <div class="album-info">
+      <h3>${s.title}</h3>
+      <div class="artist">${s.artist}</div>
+      <div class="album-tags">${tagHTML}</div>
+    </div>`;
+  // Play on click (not on action buttons)
+  card.onclick=(e)=>{
+    if(e.target.closest('.album-card-actions'))return;
+    openSong(idx);
+  };
+  card.querySelector('.ac-edit').onclick=(e)=>{e.stopPropagation();openEditForm(idx);};
+  card.querySelector('.ac-del').onclick=(e)=>{e.stopPropagation();deleteSong(idx);};
+  return card;
 }
 
 function openSong(idx){
   const s=SONGS[idx];
-  currentSong=s;
-  currentYtQuery=s.ytQuery;
-  // Use YouTube search URL — open in styled popup window
-  const ytUrl=`https://www.youtube.com/results?search_query=${encodeURIComponent(s.ytQuery)}`;
-  // Show the modal with info + direct open button (no iframe — YT search embed removed by Google)
-  document.getElementById('music-title').textContent=s.title;
-  document.getElementById('music-artist').textContent=`${s.artist} · ${s.album}`;
-  document.getElementById('music-thumb').style.background=`linear-gradient(135deg,${s.c1},${s.c2})`;
-  document.getElementById('music-tags').innerHTML=s.tags.map(t=>`<span class="album-tag">${t}</span>`).join('');
-  // Auto-open YouTube in popup right away
-  const popup=window.open(ytUrl,'_blank','width=900,height=600,noopener');
-  // Also show the modal so user sees song info + can re-open
-  document.getElementById('music-iframe').style.display='none';
-  // Replace iframe with a visual player card
   const header=document.querySelector('.music-modal-header');
-  header.innerHTML=`
-    <div style="width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,${s.c1},${s.c2});
-      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-      position:relative;overflow:hidden;">
-      <div style="position:absolute;inset:0;background:rgba(0,0,0,.35)"></div>
-      <div style="font-size:56px;position:relative;filter:drop-shadow(0 0 20px rgba(255,255,255,.5))">🎵</div>
-      <div style="position:relative;text-align:center">
-        <div style="font-size:20px;font-weight:800;color:white;text-shadow:0 2px 12px rgba(0,0,0,.8)">${s.title}</div>
-        <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:4px">${s.artist}</div>
+
+  if(s.ytId){
+    // Direct embed — plays immediately in modal
+    header.innerHTML=`
+      <iframe id="music-iframe" class="music-modal-player"
+        src="https://www.youtube-nocookie.com/embed/${s.ytId}?autoplay=1&rel=0"
+        allow="autoplay;encrypted-media" allowfullscreen></iframe>
+      <button class="music-modal-close" onclick="closeMusicModal()">✕</button>`;
+  } else {
+    // No link yet — show prompt to add + search fallback
+    const q=encodeURIComponent(`${s.title} ${s.artist} uma musume`);
+    header.innerHTML=`
+      <div style="width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,${s.c1},${s.c2});
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;position:relative;overflow:hidden;">
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,.4)"></div>
+        <div style="font-size:48px;position:relative">🎵</div>
+        <div style="position:relative;text-align:center;padding:0 20px">
+          <div style="font-size:17px;font-weight:800;color:white">${s.title}</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px">Belum ada YouTube link</div>
+        </div>
+        <div style="position:relative;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+          <button onclick="openEditFormModal(${idx})" style="padding:8px 16px;border-radius:10px;border:none;
+            background:rgba(255,180,230,.85);color:#1a0030;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+            ✏️ Tambahin Link
+          </button>
+          <button onclick="window.open('https://www.youtube.com/results?search_query=${q}','_blank')" style="padding:8px 16px;border-radius:10px;border:none;
+            background:rgba(255,0,0,.7);color:white;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+            🔍 Cari di YT
+          </button>
+        </div>
       </div>
-      <button onclick="openMusicYT()" style="position:relative;margin-top:4px;padding:10px 28px;border-radius:12px;border:none;
-        background:rgba(255,0,0,.85);color:white;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;
-        display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(255,0,0,.4);transition:all .2s;">
-        ▶ Play on YouTube
-      </button>
-    </div>
-    <button class="music-modal-close" onclick="closeMusicModal()">✕</button>`;
+      <button class="music-modal-close" onclick="closeMusicModal()">✕</button>`;
+  }
+
+  currentYtQuery=`${s.title} ${s.artist}`;
+  document.getElementById('music-title').textContent=s.title;
+  document.getElementById('music-artist').textContent=`${s.artist}${s.album?' · '+s.album:''}`;
+  document.getElementById('music-thumb').style.background=`linear-gradient(135deg,${s.c1},${s.c2})`;
+  document.getElementById('music-tags').innerHTML=(s.tags||[]).map(t=>`<span class="album-tag">${t}</span>`).join('');
   document.getElementById('music-modal').classList.add('open');
 }
+
+// Called from inside the modal's "Tambahin Link" button
+function openEditFormModal(idx){
+  closeMusicModal();
+  switchSection('songs');
+  setTimeout(()=>openEditForm(idx),200);
+}
+
 function closeMusicModal(){
   document.getElementById('music-modal').classList.remove('open');
-  // Reset header for next open
-  document.querySelector('.music-modal-header').innerHTML=`
-    <iframe id="music-iframe" class="music-modal-player" src="" allow="autoplay;encrypted-media" allowfullscreen></iframe>
-    <button class="music-modal-close" onclick="closeMusicModal()">✕</button>`;
+  const header=document.querySelector('.music-modal-header');
+  // Stop video + reset
+  header.innerHTML=`<button class="music-modal-close" onclick="closeMusicModal()">✕</button>`;
 }
-function openMusicYT(){
-  window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(currentYtQuery)}`,'_blank');
-}
+function openMusicYT(){window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(currentYtQuery)}`,'_blank');}
 document.getElementById('music-modal').addEventListener('click',function(e){if(e.target===this)closeMusicModal();});
+
+/* ── ADD / EDIT FORM ── */
+function toggleAddSong(){
+  editingIdx=-1;
+  document.getElementById('form-title-label').textContent='➕ Tambah Lagu Baru';
+  document.getElementById('f-title').value='';
+  document.getElementById('f-artist').value='';
+  document.getElementById('f-yt').value='';
+  document.getElementById('f-tags').value='';
+  document.getElementById('f-c1').value='#ff6eb4';
+  document.getElementById('f-c2').value='#a855f7';
+  const form=document.getElementById('add-song-form');
+  form.style.display=form.style.display==='none'?'block':'none';
+  if(form.style.display==='block')form.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function openEditForm(idx){
+  editingIdx=idx;
+  const s=SONGS[idx];
+  document.getElementById('form-title-label').textContent=`✏️ Edit: ${s.title}`;
+  document.getElementById('f-title').value=s.title;
+  document.getElementById('f-artist').value=s.artist;
+  document.getElementById('f-yt').value=s.ytId||'';
+  document.getElementById('f-tags').value=(s.tags||[]).join(', ');
+  document.getElementById('f-c1').value=s.c1||'#ff6eb4';
+  document.getElementById('f-c2').value=s.c2||'#a855f7';
+  document.getElementById('add-song-form').style.display='block';
+  document.getElementById('add-song-form').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function saveSongForm(){
+  const title=document.getElementById('f-title').value.trim();
+  const artist=document.getElementById('f-artist').value.trim();
+  const ytRaw=document.getElementById('f-yt').value.trim();
+  const tags=document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const c1=document.getElementById('f-c1').value;
+  const c2=document.getElementById('f-c2').value;
+  if(!title){alert('Judul lagu wajib diisi!');return;}
+  const ytId=parseYtId(ytRaw);
+  const entry={title,artist,album:'',tags,c1,c2,ytId};
+  if(editingIdx>=0){
+    SONGS[editingIdx]=entry;
+  } else {
+    SONGS.push(entry);
+  }
+  saveSongsToStorage();
+  document.getElementById('add-song-form').style.display='none';
+  editingIdx=-1;
+  loadSongs();
+}
+
+function cancelSongForm(){
+  document.getElementById('add-song-form').style.display='none';
+  editingIdx=-1;
+}
+
+function deleteSong(idx){
+  if(!confirm(`Hapus "${SONGS[idx].title}"?`))return;
+  SONGS.splice(idx,1);
+  saveSongsToStorage();
+  loadSongs();
+}
 
 /* ── RACES ── */
 const RACES=[
@@ -1338,6 +1516,40 @@ let st;search.addEventListener("input",()=>{clearTimeout(st);st=setTimeout(()=>s
 
 /* ── POPSTATE ── */
 window.addEventListener("popstate",e=>{if(e.state?.char)loadCharacterPage(e.state.char);else showHome();});
+
+/* ── CAT-BAR MOUSE DRAG SCROLL ── */
+(function(){
+  const bar = document.getElementById('cat-bar');
+  let isDragging = false, startX = 0, scrollLeft = 0, moved = false;
+
+  bar.addEventListener('mousedown', e => {
+    // Only primary button
+    if(e.button !== 0) return;
+    isDragging = true; moved = false;
+    startX = e.pageX - bar.offsetLeft;
+    scrollLeft = bar.scrollLeft;
+    bar.classList.add('dragging');
+  });
+
+  document.addEventListener('mousemove', e => {
+    if(!isDragging) return;
+    e.preventDefault();
+    const x = e.pageX - bar.offsetLeft;
+    const walk = (x - startX) * 1.4;
+    if(Math.abs(walk) > 4) moved = true;
+    bar.scrollLeft = scrollLeft - walk;
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    bar.classList.remove('dragging');
+  });
+
+  // If dragged, block the click that follows mouseup so pills don't fire
+  bar.addEventListener('click', e => {
+    if(moved){ e.stopPropagation(); moved = false; }
+  }, true);
+})();
 
 /* ── INIT ── */
 const params=new URLSearchParams(window.location.search);
