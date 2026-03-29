@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Uma Musume Wiki</title>
+<meta name="referrer" content="no-referrer">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0917'/%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff6eb4'/%3E%3Cstop offset='1' stop-color='%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' dominant-baseline='middle' font-size='36'%3E🐴%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -722,7 +723,7 @@ let continueToken=null,loading=false;
 function createCard(title,imgSrc){
   const card=document.createElement("div");
   card.className="card";
-  if(imgSrc){const img=document.createElement("img");img.src=imgSrc;img.alt=title;img.loading="lazy";img.onerror=()=>img.replaceWith(placeholder());card.appendChild(img);}
+  if(imgSrc){const img=document.createElement("img");img.src=imgSrc;img.alt=title;img.loading="lazy";img.referrerPolicy="no-referrer";img.onerror=()=>img.replaceWith(placeholder());card.appendChild(img);}
   else card.appendChild(placeholder());
   const h3=document.createElement("h3");h3.textContent=title;card.appendChild(h3);
   card.onclick=()=>openCharacter(title);grid.appendChild(card);
@@ -931,7 +932,7 @@ async function loadCharacterPage(title){
       .slice(0,20).map(i=>{
         const name=i.title.replace("File:","");
         const src=`https://umamusume.fandom.com/wiki/Special:FilePath/${encodeURIComponent(name)}`;
-        return`<img loading="lazy" src="${src}" alt="${name}" onerror="this.style.display='none'" onclick="openLightbox('${src.replace(/'/g,"\\'")}')">`;
+        return`<img loading="lazy" referrerpolicy="no-referrer" src="${src}" alt="${name}" onerror="this.style.display='none'" onclick="openLightbox('${src.replace(/'/g,"\\'")}')">`;
       }).join("");
 
     const allTabs=[...sections,{title:"Skills",isSkills:true},...(galleryItems?[{title:"Gallery",isGallery:true}]:[])];
@@ -948,7 +949,7 @@ async function loadCharacterPage(title){
         <div class="char-header-inner">
           <div class="char-img-panel">
             <div class="ssr-effect char-portrait">
-              ${mainImg?`<img src="${mainImg}" alt="${title}" onerror="this.style.display='none'">`:
+              ${mainImg?`<img src="${mainImg}" alt="${title}" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:
                 `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;background:rgba(11,9,23,.85);border-radius:14px">🐴</div>`}
             </div>
           </div>
@@ -1147,7 +1148,7 @@ async function openCatMember(catName,icon){
     titles.forEach(t=>{
       const card=document.createElement('div');card.className='card';
       const src=imgMap[t];
-      if(src){const img=document.createElement('img');img.src=src;img.alt=t;img.loading='lazy';img.onerror=()=>img.replaceWith(makePH(icon));card.appendChild(img);}
+      if(src){const img=document.createElement('img');img.src=src;img.alt=t;img.loading='lazy';img.referrerPolicy='no-referrer';img.onerror=()=>img.replaceWith(makePH(icon));card.appendChild(img);}
       else card.appendChild(makePH(icon));
       const h3=document.createElement('h3');h3.textContent=t;card.appendChild(h3);
       card.onclick=()=>{openCharacter(t);switchSectionBtnActive('characters');};
@@ -1196,7 +1197,7 @@ async function loadSupportCards(){
   titles.forEach(t=>{
     const card=document.createElement('div');card.className='card';
     const src=imgMap[t];
-    if(src){const img=document.createElement('img');img.src=src;img.alt=t;img.loading='lazy';img.onerror=()=>img.replaceWith(makePH('🃏'));card.appendChild(img);}
+    if(src){const img=document.createElement('img');img.src=src;img.alt=t;img.loading='lazy';img.referrerPolicy='no-referrer';img.onerror=()=>img.replaceWith(makePH('🃏'));card.appendChild(img);}
     else card.appendChild(makePH('🃏'));
     const h3=document.createElement('h3');h3.textContent=t;card.appendChild(h3);
     card.onclick=()=>{openCharacter(t);switchSectionBtnActive('characters');};
